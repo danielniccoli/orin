@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# package.json formatting and EOL characters are managed by Bun.
+# As such, Git should not convert them to CRLF upon checkout on Windows.
+package.json text eol=lf
