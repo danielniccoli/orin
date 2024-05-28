@@ -2,6 +2,9 @@
 module.exports = {
     root: true,
     extends: ["eslint:recommended", "plugin:svelte/recommended", "prettier"],
+    globals: {
+        BigInt: true,
+    },
     parserOptions: {
         sourceType: "module",
         ecmaVersion: 2020,
