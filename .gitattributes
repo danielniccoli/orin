@@ -4,3 +4,8 @@
 # package.json formatting and EOL characters are managed by Bun.
 # As such, Git should not convert them to CRLF upon checkout on Windows.
 package.json text eol=lf
+
+# Cargo.toml formatting and EOL characters are managed by Cargo.
+# As such, Git should not convert them to CRLF upon checkout on Windows.
+Cargo.lock text eol=lf
+Cargo.toml text eol=lf
