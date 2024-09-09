@@ -2,5 +2,8 @@
     "editor.formatOnSave": true,
     "[css][html][javascript][json][jsonc][svelte][typescript]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "terminal.integrated.env.windows": {
+        "RUST_LOG": "trace"
     }
 }
