@@ -1,3 +1,4 @@
+use rusqlite::Connection;
 use std::path::PathBuf;
 use tauri::App;
 use tauri::Manager;
@@ -22,6 +23,16 @@ fn get_db_path(app: &App) -> PathBuf {
     db_path
 }
 
+fn open_db(app: &App) -> Connection {
+    let db_path = &app.state::<AppState>().db_path;
+    let err_msg = std::format!(
+        "Could not open or create the database at {}",
+        db_path.display()
+    );
+
+    Connection::open(db_path).expect(&err_msg)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -31,6 +42,8 @@ pub fn run() {
             app.manage(AppState {
                 db_path: get_db_path(app),
             });
+
+            let mut conn = open_db(app);
 
             Ok(())
         })
