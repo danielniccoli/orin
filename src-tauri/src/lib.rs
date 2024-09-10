@@ -1,10 +1,19 @@
+use include_dir::{include_dir, Dir};
+use lazy_static::lazy_static;
 use rusqlite::Connection;
+use rusqlite_migration::Migrations;
 use std::path::PathBuf;
 use tauri::App;
 use tauri::Manager;
 
 struct AppState {
     db_path: PathBuf,
+}
+
+static MIGRATIONS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/migrations");
+lazy_static! {
+    static ref MIGRATIONS: Migrations<'static> =
+        Migrations::from_directory(&MIGRATIONS_DIR).unwrap();
 }
 
 fn get_db_path(app: &App) -> PathBuf {
@@ -33,6 +42,10 @@ fn open_db(app: &App) -> Connection {
     Connection::open(db_path).expect(&err_msg)
 }
 
+fn migrate_db(app: &App) {
+    MIGRATIONS.to_latest(&mut open_db(app));
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -43,7 +56,7 @@ pub fn run() {
                 db_path: get_db_path(app),
             });
 
-            let mut conn = open_db(app);
+            migrate_db(app);
 
             Ok(())
         })
