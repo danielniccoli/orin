@@ -32,8 +32,8 @@ fn get_db_path(app: &App) -> PathBuf {
     db_path
 }
 
-fn open_db(app: &App) -> Connection {
-    let db_path = &app.state::<AppState>().db_path;
+fn open_db(state: tauri::State<AppState>) -> Connection {
+    let db_path = &state.db_path;
     let err_msg = std::format!(
         "Could not open or create the database at {}",
         db_path.display()
@@ -42,8 +42,16 @@ fn open_db(app: &App) -> Connection {
     Connection::open(db_path).expect(&err_msg)
 }
 
-fn migrate_db(app: &App) {
-    MIGRATIONS.to_latest(&mut open_db(app));
+/// Runs database migrations. Invoked from the frontend.
+#[tauri::command]
+fn run_migrations(state: tauri::State<AppState>) -> Result<(), String> {
+    // TODO: Return the error with the original error type and handle it in the frontend
+    if let Err(msg) = MIGRATIONS.to_latest(&mut open_db(state)) {
+        log::error!("{:#?}", msg);
+        return Err(msg.to_string());
+    }
+
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -56,10 +64,9 @@ pub fn run() {
                 db_path: get_db_path(app),
             });
 
-            migrate_db(app);
-
             Ok(())
         })
+        .invoke_handler(tauri::generate_handler![run_migrations])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
