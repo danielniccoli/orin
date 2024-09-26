@@ -1,7 +1,13 @@
 use include_dir::{include_dir, Dir};
 use lazy_static::lazy_static;
 use rusqlite::Connection;
+use rusqlite::DatabaseName;
 use rusqlite_migration::Migrations;
+use std::fs::File;
+use std::fs::OpenOptions;
+use std::io::Read;
+use std::io::Write;
+use std::os::windows::prelude::*;
 use std::path::PathBuf;
 use tauri::App;
 use tauri::Manager;
@@ -54,6 +60,72 @@ fn run_migrations(state: tauri::State<AppState>) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn store_file(file_path: String, state: tauri::State<AppState>) -> Result<(), String> {
+    log::debug!("File path: {}", file_path);
+    let mut file = {
+        let result: Result<_, _>;
+        // On Windows, do not allow other processes to modify this file while we have it open
+        if cfg!(windows) {
+            result = OpenOptions::new().read(true).share_mode(1).open(file_path);
+        } else {
+            result = File::open(file_path);
+        }
+        match result {
+            Ok(file) => file,
+            Err(msg) => {
+                log::error!("{:#?}", msg);
+                return Err(msg.to_string());
+            }
+        }
+    };
+    let file_size = file.metadata().expect("Unable to read file metadata").len();
+    log::debug!("File size: {}", file_size);
+
+    let mut db = open_db(state);
+    let db = match db.transaction() {
+        Ok(transaction) => transaction,
+        Err(msg) => {
+            log::error!("{:#?}", msg);
+            return Err(msg.to_string());
+        }
+    };
+
+    if let Err(msg) = db.execute(
+        "INSERT INTO documents (document) VALUES (ZEROBLOB(?1))",
+        [file_size],
+    ) {
+        log::error!("{:#?}", msg);
+        return Err(msg.to_string());
+    };
+
+    let rowid = db.last_insert_rowid();
+
+    let mut blob = match db.blob_open(DatabaseName::Main, "documents", "document", rowid, false) {
+        Ok(blob) => blob,
+        Err(msg) => {
+            log::error!("{:#?}", msg);
+            return Err(msg.to_string());
+        }
+    };
+
+    let mut buffer = vec![0; 1 << 20]; // = 1 MiB
+    loop {
+        let bytes_read = file.read(&mut buffer).expect("buffer should be readable");
+        if bytes_read == 0 {
+            break;
+        }
+        blob.write_all(&buffer[..bytes_read])
+            .expect("blob should be writable");
+    }
+
+    // TODO: Why does db.commit() throw a problem at me, when I remove blob.close()?
+    blob.close().unwrap();
+    db.commit().unwrap();
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -66,7 +138,8 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![run_migrations])
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![run_migrations, store_file])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

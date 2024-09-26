@@ -3,3 +3,5 @@
 </script>
 
 <div>Everything seems to be in working order.</div>
+
+<a href="/add_document">Add Document</a>
