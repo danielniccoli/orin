@@ -9,6 +9,7 @@ use std::io::Read;
 use std::io::Write;
 use std::os::windows::prelude::*;
 use std::path::PathBuf;
+use tauri::ipc::Response;
 use tauri::App;
 use tauri::Manager;
 
@@ -58,6 +59,23 @@ fn run_migrations(state: tauri::State<AppState>) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+#[tauri::command]
+fn get_document(state: tauri::State<AppState>) -> Result<Response, String> {
+    //fn get_document(state: tauri::State<AppState>) -> Result<Vec<Response>, String> {
+    let db = open_db(state);
+    let mut stmt = db.prepare("SELECT document FROM documents").unwrap();
+    let document_iter = stmt
+        .query_map([], |row| {
+            let document: Vec<u8> = row.get(0).unwrap();
+            Ok(document)
+        })
+        .unwrap();
+
+    let fields: Vec<Vec<u8>> = document_iter.map(|s| s.unwrap()).collect();
+    //Ok(Response::new(fields[0].clone()))
+    Ok(Response::new(fields[0].clone()))
 }
 
 #[tauri::command]
@@ -139,7 +157,11 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![run_migrations, store_file])
+        .invoke_handler(tauri::generate_handler![
+            run_migrations,
+            store_file,
+            get_document
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
