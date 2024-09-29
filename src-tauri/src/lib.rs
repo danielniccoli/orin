@@ -60,6 +60,20 @@ fn run_migrations(state: tauri::State<AppState>) -> Result<(), String> {
     Ok(())
 }
 
+/// Runs database migrations. Invoked from the frontend.
+#[tauri::command]
+fn get_documents(state: tauri::State<AppState>) -> Result<(), String> {
+    let db = open_db(state);
+    let mut stmt = db.prepare("SELECT * FROM documents").unwrap();
+    let mut rows = stmt.query([]).unwrap();
+
+    while let Some(row) = rows.next().unwrap() {
+        println!("{:?}", row);
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 fn store_file(file_path: String, state: tauri::State<AppState>) -> Result<(), String> {
     log::debug!("File path: {}", file_path);
@@ -139,7 +153,11 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![run_migrations, store_file])
+        .invoke_handler(tauri::generate_handler![
+            run_migrations,
+            store_file,
+            get_documents
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

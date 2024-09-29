@@ -4,4 +4,9 @@
 
 <div>Everything seems to be in working order.</div>
 
-<a href="/add_document">Add Document</a>
+<div>
+    <a href="/add_document">Add Document</a>
+</div>
+<div>
+    <a href="/documents">Get Document</a>
+</div>
